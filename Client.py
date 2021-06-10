@@ -5,11 +5,13 @@ import struct
 import plistlib
 from uuid import getnode as get_mac
 from random import randint
+import time
 
 import dhcppython
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.bind(('0.0.0.0', 67))
 Mac=""
 XID=""
@@ -76,7 +78,7 @@ def buildPacket_request(serverip , offerip):
     packet += serverip  # Next server IP address: 0.0.0.0
     packet += b'\x00\x00\x00\x00'  # Relay agent IP address: 0.0.0.0
     # packet += b'\x00\x26\x9e\x04\x1e\x9b'   #Client MAC address: 00:26:9e:04:1e:9b
-    packet += Mac
+    packet += b'\xEE\xC1\x9A\xD6\x3E\x00'
     packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'  # Client hardware address padding: 00000000000000000000
     packet += b'\x00' * 67  # Server host name not given
     packet += b'\x00' * 125  # Boot file name not given
@@ -118,6 +120,8 @@ def offerAndserverip(pkt):
 if __name__ == '__main__':
     #send discovery
     sock.sendto(buildPacket_discovery(), ('<broadcast>', 68))
+    # time.sleep(5)
+
     #offer
 
     msg, b = sock.recvfrom(1024)
@@ -132,6 +136,9 @@ if __name__ == '__main__':
         print(offerip)
 
         sock.sendto(buildPacket_request(serverip,offerip), (str(serverip), 68))
+
+        msg, b = sock.recvfrom(1024)
+        print("Ack {}".format(msg))
 
 
 
