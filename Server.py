@@ -50,7 +50,7 @@ class Broker():
 
         # logging.info("Talk to client %s", ip)
         # new Client arrive
-        if xid not in self.connected_clients_list:
+        if mac not in self.connected_clients_list:
             block = self.block_or_not(mac)
             reserve = self.reserved_or_not(mac)
             print(reserve)
@@ -65,7 +65,7 @@ class Broker():
                 self.sock.sendto(string.encode(), ('255.255.255.255', 67))
 
             else:
-                self.connected_clients_list[xid] = mac
+                self.connected_clients_list[mac] = xid
                 print(self.connected_clients_list)
                 occupy_ip_len = len(self.OccupyIP)
                 all_ip_number = self.stopInterval - self.startInterval + 1
@@ -87,38 +87,41 @@ class Broker():
                             print("Server want offer {}".format(offer_ip))
 
                             flag = False
+                    print("lets offer to {}".format(mac))
                     pkt = self.buildPacket_offer(offer_ip, xid,mac)
                     self.sock.sendto(pkt, ('255.255.255.255', 67))
-                    while True:
-                        print("hello")
-                        msg, client = server.recvfrom(1024)
+                    print("maaaacccccc {}".format(mac))
+                    # while True:
+                    print("hello")
+                    msg, client = server.recvfrom(1024)
 
-                        print("Request coming {}".format(str(msg)))
-                        #Send Ack
-                        pkt=self.buildPacket_Ack(offer_ip,xid,mac)
-                        # start lease time timer
-                        self.sock.sendto(pkt, ('255.255.255.255', 67))
-                        lease_time=self.lease_time
-                        client_info = ["Name", mac, offer_ip,lease_time]
-                        self.Serviced_ClientsInfo.append(client_info)
-                        index=self.Serviced_ClientsInfo.index(client_info)
-                        self.OccupyIP.append(offer_ip)
+                    print("Request coming {}".format(str(msg)))
+                    #Send Ack
+                    pkt=self.buildPacket_Ack(offer_ip,xid,mac)
+                    # start lease time timer
+                    self.sock.sendto(pkt, ('255.255.255.255', 67))
+                    lease_time=self.lease_time
+                    client_info = ["Name", mac, offer_ip,lease_time]
+                    self.Serviced_ClientsInfo.append(client_info)
+                    index=self.Serviced_ClientsInfo.index(client_info)
+                    self.OccupyIP.append(offer_ip)
 
-                        t =int(self.lease_time)
-                        print("Lease Time start!!")
-                        while int(t):
+                    t =int(self.lease_time)
+                    print("Lease Time start for {}!!".format(mac))
+                    while int(t):
 
-                            mins, secs = divmod(int(self.lease_time), 60)
-                            timer = '{:02d}:{:02d}'.format(mins, secs)
-                            # print(timer)
-                            time.sleep(1)
-                            t -= 1
-                            self.Serviced_ClientsInfo[index]=  ["Name", mac, offer_ip,t]
-                        print("IP expiered for {}".format(mac))
-                        #Free IP and client
-                        self.OccupyIP.remove(offer_ip)
-                        # self.connected_clients_list.pop(xid)
-                        #TODO HANDLE NAME OF COMPUTERS
+                        mins, secs = divmod(int(self.lease_time), 60)
+                        timer = '{:02d}:{:02d}'.format(mins, secs)
+                        # print(timer)
+                        time.sleep(1)
+                        t -= 1
+                        self.Serviced_ClientsInfo[index]=  ["Name", mac, offer_ip,t]
+                    print("IP expiered for {}".format(mac))
+                    #Free IP and client
+                    self.OccupyIP.remove(offer_ip)
+                    self.connected_clients_list.pop(str(mac))
+                    print(self.connected_clients_list)
+                    #TODO HANDLE NAME OF COMPUTERS
 
 
 
