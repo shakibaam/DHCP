@@ -3,6 +3,8 @@ import struct
 import threading
 import socket
 import logging
+import time
+
 import dhcppython
 import random
 from uuid import getnode as get_mac
@@ -19,7 +21,7 @@ class Broker():
         self.connected_clients_list = dict()
         self.clients = []
         self.OccupyIP = []
-        self.Serviced_ClientsInfo = dict()
+        self.Serviced_ClientsInfo = []
         self.reserved = dict()
         self.startInterval = 0
         self.stopInterval = 0
@@ -64,6 +66,7 @@ class Broker():
 
             else:
                 self.connected_clients_list[xid] = mac
+                print(self.connected_clients_list)
                 occupy_ip_len = len(self.OccupyIP)
                 all_ip_number = self.stopInterval - self.startInterval + 1
                 if occupy_ip_len == all_ip_number:
@@ -84,15 +87,42 @@ class Broker():
                             print("Server want offer {}".format(offer_ip))
 
                             flag = False
-                    pkt = self.buildPacket_offer(offer_ip, xid)
+                    pkt = self.buildPacket_offer(offer_ip, xid,mac)
                     self.sock.sendto(pkt, ('255.255.255.255', 67))
                     while True:
-                        print("hhello")
+                        print("hello")
                         msg, client = server.recvfrom(1024)
-                        print("=======")
+
                         print("Request coming {}".format(str(msg)))
-                        pkt=self.buildPacket_Ack(offer_ip,xid)
+                        #Send Ack
+                        pkt=self.buildPacket_Ack(offer_ip,xid,mac)
+                        # start lease time timer
                         self.sock.sendto(pkt, ('255.255.255.255', 67))
+                        lease_time=self.lease_time
+                        client_info = ["Name", mac, offer_ip,lease_time]
+                        self.Serviced_ClientsInfo.append(client_info)
+                        index=self.Serviced_ClientsInfo.index(client_info)
+                        self.OccupyIP.append(offer_ip)
+
+                        t =int(self.lease_time)
+                        print("Lease Time start!!")
+                        while int(t):
+
+                            mins, secs = divmod(int(self.lease_time), 60)
+                            timer = '{:02d}:{:02d}'.format(mins, secs)
+                            # print(timer)
+                            time.sleep(1)
+                            t -= 1
+                            self.Serviced_ClientsInfo[index]=  ["Name", mac, offer_ip,t]
+                        print("IP expiered for {}".format(mac))
+                        #Free IP and client
+                        self.OccupyIP.remove(offer_ip)
+                        # self.connected_clients_list.pop(xid)
+                        #TODO HANDLE NAME OF COMPUTERS
+
+
+
+
 
 
     def listen_clients(self):
@@ -104,6 +134,7 @@ class Broker():
             print(msg_type["dhcp_message_type"])
             if "DHCPDISCOVER" in msg_type["dhcp_message_type"]:
                 client_xid, client_mac = self.parse_packet(msg)
+                print("Client xid {}".format(client_xid))
                 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 server.bind(("127.0.0.1", 68))
@@ -132,7 +163,7 @@ class Broker():
             Reserved = True
         return Reserved
 
-    def buildPacket_offer(self, offer_ip, xid):
+    def buildPacket_offer(self, offer_ip, xid,mac):
         ip_as_bytes = bytes(map(int, str(offer_ip).split('.')))
         serverip = bytes(map(int, str("127.0.0.1").split('.')))
 
@@ -153,7 +184,7 @@ class Broker():
         packet += serverip  # Next server IP address: 0.0.0.0
         packet += b'\x00\x00\x00\x00'  # Relay agent IP address: 0.0.0.0
         # packet += b'\x00\x26\x9e\x04\x1e\x9b'   #Client MAC address: 00:26:9e:04:1e:9b
-        mac = self.connected_clients_list[xid]
+        # mac = self.connected_clients_list[xid]
         mac = str(mac).replace(':', '')
         packet += bytearray.fromhex(mac)
         packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'  # Client hardware address padding: 00000000000000000000
@@ -165,7 +196,7 @@ class Broker():
 
         return packet
 
-    def buildPacket_Ack(self, offer_ip, xid):
+    def buildPacket_Ack(self, offer_ip, xid,mac):
         ip_as_bytes = bytes(map(int, str(offer_ip).split('.')))
         serverip = bytes(map(int, str("127.0.0.1").split('.')))
 
@@ -177,7 +208,7 @@ class Broker():
 
         xid_hex = hex(xid).split('x')[-1]
         print(xid_hex)
-        packet += bytearray.fromhex(xid_hex)  # Transaction ID
+        packet += bytes.fromhex(xid_hex)  # Transaction ID
         # TODO HANDLE ID FOR EACH CLIENT
         packet += b'\x00\x00'  # Seconds elapsed: 0
         packet += b'\x00\x00'  # Bootp flags: 0x8000 (Broadcast) + reserved flags
@@ -186,9 +217,9 @@ class Broker():
         packet += serverip  # Next server IP address: 0.0.0.0
         packet += b'\x00\x00\x00\x00'  # Relay agent IP address: 0.0.0.0
         # packet += b'\x00\x26\x9e\x04\x1e\x9b'   #Client MAC address: 00:26:9e:04:1e:9b
-        mac = self.connected_clients_list[xid]
+        # mac = self.connected_clients_list[xid]
         mac = str(mac).replace(':', '')
-        packet += bytearray.fromhex(mac)
+        packet += bytes.fromhex(mac)
         packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'  # Client hardware address padding: 00000000000000000000
         packet += b'\x00' * 67  # Server host name not given
         packet += b'\x00' * 125  # Boot file name not given
@@ -241,3 +272,4 @@ if __name__ == '__main__':
 
     b = Broker()
     b.listen_clients()
+

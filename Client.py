@@ -24,10 +24,12 @@ clientPort = 68
 
 
 
-def buildPacket_discovery():
+def buildPacket_discovery(mac):
+    mac = str(mac).replace(":", "")
+    mac = bytes.fromhex(mac)
     global Mac,XID
-    macb = getMacInBytes()
-    Mac=macb
+    # macb = getMacInBytes()
+    Mac=mac
     transactionID = b''
 
     for i in range(4):
@@ -47,7 +49,7 @@ def buildPacket_discovery():
     packet += b'\x00\x00\x00\x00'  # Your (client) IP address: 0.0.0.0
     packet += b'\x00\x00\x00\x00'  # Next server IP address: 0.0.0.0
     packet += b'\x00\x00\x00\x00'  # Relay agent IP address: 0.0.0.0
-    packet += b'\xEE\xC1\x9A\xD6\x3E\x00'   #Client MAC address:  "FF:C1:9A:D6:3E:00
+    packet += mac   #Client MAC address:  "FF:C1:9A:D6:3E:00
     # packet += macb
     packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'  # Client hardware address padding: 00000000000000000000
     packet += b'\x00' * 67  # Server host name not given
@@ -118,8 +120,10 @@ def offerAndserverip(pkt):
 
 
 if __name__ == '__main__':
+
+    mac=input("Enter your mac address")
     #send discovery
-    sock.sendto(buildPacket_discovery(), ('<broadcast>', 68))
+    sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
     # time.sleep(5)
 
     #offer
