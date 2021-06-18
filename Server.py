@@ -24,6 +24,7 @@ class Broker():
         self.Serviced_ClientsInfo_print = []
         self.client_ips = dict()
         self.reserved = dict()
+        self.leaseThreads=dict()
         self.startInterval = 0
         self.stopInterval = 0
         self.serverIP = socket.gethostbyname(socket.gethostname())
@@ -58,8 +59,8 @@ class Broker():
             print(reserve)
             if block:
                 print("This client is blocked")
-                string = "You are blocked blocked"
-                server.sendto(string.encode(), ('255.255.255.255', 67))
+                string = "You are blocked "
+                self.sock.sendto(string.encode(), ('255.255.255.255', 67))
             if reserve:
                 reserved_ip = self.reserved[mac]
                 print("This client is reserved with ip {}".format(reserved_ip))
@@ -108,23 +109,29 @@ class Broker():
                     index = self.Serviced_ClientsInfo_print.index(client_info)
                     self.OccupyIP.append(offer_ip)
                     self.client_ips[mac] = offer_ip
+                    lease_thread = threading.Thread(target=self.lease,args=(mac,offer_ip))
+                    self.leaseThreads[mac]=lease_thread
+                    lease_thread.start()
 
-                    t = int(self.lease_time)
-                    print("Lease Time start for {}!!".format(mac))
-                    while int(t):
-                        mins, secs = divmod(int(self.lease_time), 60)
-                        timer = '{:02d}:{:02d}'.format(mins, secs)
-                        # print(timer)
-                        time.sleep(1)
-                        t -= 1
-                        self.Serviced_ClientsInfo_print[index] = ["Name", mac, offer_ip, t]
-                    print("IP expiered for {}".format(mac))
-                    # Free IP and client
-                    self.OccupyIP.remove(offer_ip)
-                    self.connected_clients_list.pop(str(mac))
-                    self.client_ips.pop(str(mac))
-                    print(self.client_ips)
+
                     # TODO HANDLE NAME OF COMPUTERS
+        else:
+            prev_ip=self.client_ips[mac]
+            prev_thread=self.leaseThreads[mac]
+            print("You are in list yet with {} ,lease time renew".format(prev_ip))
+            string = "You are in list yet with {} ,lease time renew".format(prev_ip)
+            self.sock.sendto(string.encode(), ('255.255.255.255', 67))
+            index=-1
+            prev_thread.join()
+            self.leaseThreads.pop(mac)
+            lease_thread = threading.Thread(target=self.lease, args=(mac,prev_ip))
+            self.leaseThreads[mac] = lease_thread
+            lease_thread.start()
+
+            # TODO HANDLE NAME OF COMPUTERS
+
+
+
 
     def listen_clients(self):
         show_client_thread = threading.Thread(target=self.show_clients())
@@ -185,7 +192,7 @@ class Broker():
         packet += bytearray.fromhex(xid_hex)  # Transaction ID
 
         packet += b'\x00\x00'  # Seconds elapsed: 0
-        packet += b'\x00\x00'  # Bootp flags: 0x8000 (Broadcast) + reserved flags
+        packet += b'\x00\x00'  # Bootp flags
         packet += b'\x00\x00\x00\x00'  # Client IP address: 0.0.0.0
         packet += ip_as_bytes  # Your (client) IP address: 0.0.0.0
         packet += serverip  # Next server IP address: 0.0.0.0
@@ -194,12 +201,12 @@ class Broker():
         # mac = self.connected_clients_list[xid]
         mac = str(mac).replace(':', '')
         packet += bytearray.fromhex(mac)
-        packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'  # Client hardware address padding: 00000000000000000000
-        packet += b'\x00' * 67  # Server host name not given
-        packet += b'\x00' * 125  # Boot file name not given
+        packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        packet += b'\x00' * 67  # Server host name
+        packet += b'\x00' * 125  # Boot file name
         packet += b'\x63\x82\x53\x63'  # Magic cookie: DHCP
         # DHCP IP Address
-        packet += b'\x35\x01\x02'  # Option: (t=53,l=1) DHCP Message Type = DHCP Discover
+        packet += b'\x35\x01\x02'
 
         return packet
 
@@ -218,7 +225,7 @@ class Broker():
         packet += bytes.fromhex(xid_hex)  # Transaction ID
 
         packet += b'\x00\x00'  # Seconds elapsed: 0
-        packet += b'\x00\x00'  # Bootp flags: 0x8000 (Broadcast) + reserved flags
+        packet += b'\x00\x00'  # Bootp flags
         packet += b'\x00\x00\x00\x00'  # Client IP address: 0.0.0.0
         packet += ip_as_bytes  # Your (client) IP address: 0.0.0.0
         packet += serverip  # Next server IP address: 0.0.0.0
@@ -227,12 +234,12 @@ class Broker():
         # mac = self.connected_clients_list[xid]
         mac = str(mac).replace(':', '')
         packet += bytes.fromhex(mac)
-        packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'  # Client hardware address padding: 00000000000000000000
-        packet += b'\x00' * 67  # Server host name not given
-        packet += b'\x00' * 125  # Boot file name not given
+        packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+        packet += b'\x00' * 67  # Server host name
+        packet += b'\x00' * 125  # Boot file name
         packet += b'\x63\x82\x53\x63'  # Magic cookie: DHCP
         # DHCP IP Address
-        packet += b'\x35\x01\x05'  # Option: (t=53,l=1) DHCP Message Type = DHCP Discover
+        packet += b'\x35\x01\x05'
 
         return packet
 
@@ -282,6 +289,21 @@ class Broker():
         #             print(self.Serviced_ClientsInfo_print)
         #
         #
+
+    def lease(self,mac,ip):
+        timeOut=self.lease_time
+        print("lease start for {}".format(mac))
+
+        while timeOut:
+            mins, secs = divmod(timeOut, 60)
+            timer = '{:02d}:{:02d}'.format(mins, secs)
+            # print(timer)
+            time.sleep(1)
+            timeOut -= 1
+        print("lease expire for {}".format(mac))
+        self.OccupyIP.remove(ip)
+        self.connected_clients_list.pop(str(mac))
+        self.client_ips.pop(str(mac))
 
 
 if __name__ == '__main__':

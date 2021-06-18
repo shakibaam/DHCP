@@ -46,19 +46,19 @@ def buildPacket_discovery(mac):
     packet += b'\x00'  # Hops: 0
     packet += transactionID  # Transaction ID
     packet += b'\x00\x00'  # Seconds elapsed: 0
-    packet += b'\x80\x00'  # Bootp flags: 0x8000 (Broadcast) + reserved flags
+    packet += b'\x80\x00'  # Bootp flags:
     packet += b'\x00\x00\x00\x00'  # Client IP address: 0.0.0.0
     packet += b'\x00\x00\x00\x00'  # Your (client) IP address: 0.0.0.0
     packet += b'\x00\x00\x00\x00'  # Next server IP address: 0.0.0.0
     packet += b'\x00\x00\x00\x00'  # Relay agent IP address: 0.0.0.0
     packet += mac  # Client MAC address:  "FF:C1:9A:D6:3E:00
-    # packet += macb
-    packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'  # Client hardware address padding: 00000000000000000000
-    packet += b'\x00' * 67  # Server host name not given
-    packet += b'\x00' * 125  # Boot file name not given
+
+    packet += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+    packet += b'\x00' * 67  # Server host name
+    packet += b'\x00' * 125  # Boot file nam
     packet += b'\x63\x82\x53\x63'  # Magic cookie: DHCP
     # DHCP IP Address
-    packet += b'\x35\x01\x01'  # Option: (t=53,l=1) DHCP Message Type = DHCP Discover
+    packet += b'\x35\x01\x01'
 
     return packet
 
@@ -168,54 +168,96 @@ if __name__ == '__main__':
     flag=True
     ds_time=INITIAL_INTERVAL
 
-    while flag:
-        sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
-        get_ip=False
-        timer_thread=threading.Thread(target=discovery_timer,args=(ds_time,))
-        timer_thread.start()
-        while dis_time>0:
+    # while flag:
+    sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
+    get_ip=False
+    timer_thread=threading.Thread(target=discovery_timer,args=(ds_time,))
+    timer_thread.start()
+    # while dis_time>0:
 
 
 
         # offer
 
-            msg, b = sock.recvfrom(1024)
-            try:
-                data = msg.decode()
-            except (UnicodeDecodeError, AttributeError):
+    msg, b = sock.recvfrom(1024)
+    try:
+        data = msg.decode()
+        print(data)
+    except (UnicodeDecodeError, AttributeError):
 
-                offerip, serverip = parse_packet_client(msg)
-                print("offer {}:".format(msg))
-                print(offerip)
+        offerip, serverip = parse_packet_client(msg)
+        print("offer {}:".format(msg))
+        print(offerip)
 
-                sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
-                print("send request")
-                getAck=False
-                time_out_thread=threading.Thread(target=time_out)
-                time_out_thread.start()
+        sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
+        print("send request")
+        getAck=False
+        time_out_thread=threading.Thread(target=time_out)
+        time_out_thread.start()
 
-                while timeOut>0:
-
-
-                    msg, b = sock.recvfrom(1024)
-                    if msg:
-                        print("Ack {}".format(msg))
-                        getAck=True
-                    # if getAck:
-                    #     flag=False
-                if getAck==False:
-                    print("time out!!")
-                    continue
-                else:
-                    print("No time out :)")
-                    get_ip=True
+        # while timeOut>0:
 
 
+        msg, b = sock.recvfrom(1024)
+        if msg:
+            print("Ack {}".format(msg))
+            getAck=True
+        # if getAck:
+        #     flag=False
+    # if getAck==False:
+    #     print("time out!!")
+    #     # continue
+    # else:
+    #     print("No time out :)")
+    #     get_ip=True
 
-        if get_ip:
-            flag=False
-        else:
-            ds_time=ds_time*2*random.uniform(0, 1)
+
+
+
+    # sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
+    # get_ip = False
+    # timer_thread = threading.Thread(target=discovery_timer, args=(ds_time,))
+    # timer_thread.start()
+    # # while dis_time>0:
+    #
+    # # offer
+    #
+    # msg, b = sock.recvfrom(1024)
+    # try:
+    #     data = msg.decode()
+    # except (UnicodeDecodeError, AttributeError):
+    #
+    #     offerip, serverip = parse_packet_client(msg)
+    #     print("offer {}:".format(msg))
+    #     print(offerip)
+    #
+    #     sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
+    #     print("send request")
+    #     getAck = False
+    #     time_out_thread = threading.Thread(target=time_out)
+    #     time_out_thread.start()
+    #
+    #     while timeOut > 0:
+    #
+    #         msg, b = sock.recvfrom(1024)
+    #         if msg:
+    #             print("Ack {}".format(msg))
+    #             getAck = True
+    #         # if getAck:
+    #         #     flag=False
+    #     if getAck == False:
+    #         print("time out!!")
+    #         # continue
+    #     else:
+    #         print("No time out :)")
+    #         get_ip = True
+
+
+
+# if get_ip:
+#     flag=False
+# else:
+#     ds_time=ds_time*2*random.uniform(0, 1)
 
 
 
