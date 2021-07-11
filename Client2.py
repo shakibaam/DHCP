@@ -172,7 +172,7 @@ def start_process2(mac):
         msg, b = sock.recvfrom(1024)
         try:
             data = msg.decode()
-            if "reserved" in data:
+            if "reserved" in data or "renew" in data:
                 getAck = True
                 get_ip = True
             print(data)
@@ -257,15 +257,22 @@ if __name__ == '__main__':
     prv_dis = INITIAL_INTERVAL
 
 
+    while True:
+        while dis_time > 0:
+            while not getAck:
+                getAck, getIp = start_process(mac)
 
-    while dis_time > 0:
-        while not getAck:
-            getAck, getIp = start_process(mac)
+        if dis_time <= 0:
+            print("Discovery timer finish..Go to begin timer again")
+            if getAck == False or getIp == False:
+                print("Get ip Not OK..Try again")
+                dis_time = prv_dis * 2 * random.uniform(0, 1)
+                prv_dis = dis_time
 
-    if dis_time <= 0:
-        if getAck == False or getIp == False:
-            dis_time = prv_dis * 2 * random.uniform(0, 1)
-            prv_dis = dis_time
+            else:
+                print("Get ip Ok..wait 10s")
+
+                sleep(10)
 
         # if not getIp:
         #     while ds_time>0:
