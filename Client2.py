@@ -3,14 +3,9 @@ import socket
 import random
 import socket
 import struct
-import plistlib
-from uuid import getnode as get_mac
 from random import randint
 from time import *
 import threading
-from goto import with_goto
-
-import dhcppython
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -40,7 +35,7 @@ def buildPacket_discovery(mac):
         t = randint(0, 255)
         transactionID += struct.pack('!B', t)
     XID = transactionID
-    print(XID)
+    # print(XID)
 
     packet = b''
     packet += b'\x01'  # Message type: Boot Request (1)
@@ -118,7 +113,7 @@ def parse_packet_client(pkt):
 def start_process(mac):
     print("Start Process")
     global dis_time
-    sock.settimeout(2)
+
     sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
     get_ip = False
     getAck = False
@@ -134,17 +129,17 @@ def start_process(mac):
         if "reserved" in data:
             getAck = True
             get_ip = True
-        print(data)
+        # print(data)
     except (UnicodeDecodeError, AttributeError):
         print(pkt_type(msg))
         offerip, serverip, mac = parse_packet_client(msg)
-        print("offer {} for {}:".format(offer_ip, mac))
+        # print("offer {} for {}:".format(offer_ip, mac))
         print(offerip)
 
         sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
         print("send request")
         getAck = False
-
+        sock.settimeout(2)
         try:
             msg, b = sock.recvfrom(1024)
             if msg:
@@ -176,11 +171,11 @@ def start_process2(mac):
             if "reserved" in data or "renew" in data:
                 getAck = True
                 get_ip = True
-            print(data)
+            # print(data)
         except (UnicodeDecodeError, AttributeError):
             print(pkt_type(msg))
             offerip, serverip, mac = parse_packet_client(msg)
-            print("offer {} for {}:".format(offer_ip, mac))
+            # print("offer {} for {}:".format(offer_ip, mac))
             print(offerip)
 
             sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
@@ -220,16 +215,16 @@ def discovery_timer(initial_interval):
         dis_time -= 1
 
 
-def time_out():
-    global timeOut
-    timeOut = 3
-
-    while timeOut > 0:
-        mins, secs = divmod(timeOut, 60)
-        timer = '{:02d}:{:02d}'.format(mins, secs)
-        print(timer)
-        sleep(1)
-        timeOut -= 1
+# def time_out():
+#     global timeOut
+#     timeOut = 3
+#
+#     while timeOut > 0:
+#         mins, secs = divmod(timeOut, 60)
+#         timer = '{:02d}:{:02d}'.format(mins, secs)
+#         print(timer)
+#         sleep(1)
+#         timeOut -= 1
 
 
 if __name__ == '__main__':
@@ -254,9 +249,7 @@ if __name__ == '__main__':
     getAck = False
     getIp = False
 
-    # timer_thread = threading.Thread(target=discovery_timer, args=(INITIAL_INTERVAL,))
-    # timer_thread.start()
-    # prv_dis = INITIAL_INTERVAL
+
 
     prv_dis = INITIAL_INTERVAL
     while True:
@@ -271,29 +264,27 @@ if __name__ == '__main__':
             print("Discovery timer finish..Go to begin timer again")
             if getAck == False or getIp == False:
                 print("Get ip Not OK..Try again")
-                if prv_dis>=120:
-                    dis_time=120
+                if prv_dis >= 120:
+                    dis_time = 120
+                    print("Next discovery time {}".format(dis_time))
                 else:
-                    dis_time = int (prv_dis * 2 * random.uniform(0, 1))
+                    dis_time = int(prv_dis * 2 * random.uniform(0, 1))
+                    print("Next discovery time {}".format(dis_time))
                     prv_dis = dis_time
 
 
             else:
-                if prv_dis>=120:
-                    dis_time=120
+                if prv_dis >= 120:
+                    dis_time = 120
+                    print("Next discovery time {}".format(dis_time))
                 else:
-                    dis_time = int (prv_dis * 2 * random.uniform(0, 1))
+                    dis_time = int(prv_dis * 2 * random.uniform(0, 1))
+                    print("Next discovery time {}".format(dis_time))
                     prv_dis = dis_time
                     print("Get ip Ok..wait 10s")
 
                 sleep(10)
                 print("Finish 10s")
-                getAck=False
-                getIp=False
+                getAck = False
+                getIp = False
 
-        # if not getIp:
-        #     while ds_time>0:
-        #         print(ds_time)
-        #         pass
-        #
-        #     ds_time = ds_time * 2 * random.uniform(0, 1)
