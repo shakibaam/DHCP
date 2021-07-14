@@ -109,7 +109,7 @@ class Server():
 
                     pkt = self.buildPacket_Ack(offer_ip, xid, mac)
                     # start lease time timer
-                    time.sleep(5)
+                    # time.sleep(5)
                     self.sock.sendto(pkt, ('255.255.255.255', 67))
                     lease_time = self.lease_time
                     PCName = OuiLookup().query(mac)

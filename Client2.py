@@ -116,6 +116,7 @@ def parse_packet_client(pkt):
 
 
 def start_process(mac):
+    print("Start Process")
     global dis_time
     sock.settimeout(2)
     sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
@@ -234,6 +235,7 @@ def time_out():
 if __name__ == '__main__':
 
     def discovery_timer(initial_interval):
+
         global dis_time
         dis_time = initial_interval
 
@@ -252,12 +254,15 @@ if __name__ == '__main__':
     getAck = False
     getIp = False
 
-    timer_thread = threading.Thread(target=discovery_timer, args=(INITIAL_INTERVAL,))
-    timer_thread.start()
+    # timer_thread = threading.Thread(target=discovery_timer, args=(INITIAL_INTERVAL,))
+    # timer_thread.start()
+    # prv_dis = INITIAL_INTERVAL
+
     prv_dis = INITIAL_INTERVAL
-
-
     while True:
+        timer_thread = threading.Thread(target=discovery_timer, args=(dis_time,))
+        timer_thread.start()
+
         while dis_time > 0:
             while not getAck:
                 getAck, getIp = start_process(mac)
@@ -266,13 +271,25 @@ if __name__ == '__main__':
             print("Discovery timer finish..Go to begin timer again")
             if getAck == False or getIp == False:
                 print("Get ip Not OK..Try again")
-                dis_time = prv_dis * 2 * random.uniform(0, 1)
-                prv_dis = dis_time
+                if prv_dis>=120:
+                    dis_time=120
+                else:
+                    dis_time = int (prv_dis * 2 * random.uniform(0, 1))
+                    prv_dis = dis_time
+
 
             else:
-                print("Get ip Ok..wait 10s")
+                if prv_dis>=120:
+                    dis_time=120
+                else:
+                    dis_time = int (prv_dis * 2 * random.uniform(0, 1))
+                    prv_dis = dis_time
+                    print("Get ip Ok..wait 10s")
 
                 sleep(10)
+                print("Finish 10s")
+                getAck=False
+                getIp=False
 
         # if not getIp:
         #     while ds_time>0:
