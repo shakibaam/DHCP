@@ -165,7 +165,7 @@ def start_process(mac):
 
 def start_process2(mac):
     global dis_time
-    sock.settimeout(4)
+
     sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
     get_ip = False
     getAck = False
@@ -186,7 +186,7 @@ def start_process2(mac):
             sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
             print("send request")
             # getAck = False
-
+            sock.settimeout(4)
             try:
                 msg, b = sock.recvfrom(1024)
 
