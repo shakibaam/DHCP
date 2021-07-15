@@ -166,6 +166,7 @@ def start_process(mac):
             timer_thread = threading.Thread(target=lease_expire())
             timer_thread.start()
 
+
     return getAck, get_ip , finish
 
 
@@ -282,6 +283,8 @@ if __name__ == '__main__':
             # timer_thread.start()
 
         if dis_time <= 0:
+            rand=random.uniform(0, 1)
+            print(rand)
             print("Discovery timer finish..Go to begin timer again")
             if getAck==False:
                 print("Get ip Not OK..Try again")
@@ -289,7 +292,9 @@ if __name__ == '__main__':
                     dis_time = BACKOFF_CUTOFF
                     print("Next discovery time {}".format(dis_time))
                 else:
-                    dis_time = math.floor(prv_dis * 2 * random.uniform(0, 1))
+                    generate=prv_dis * 2 * rand
+                    print(generate)
+                    dis_time = math.floor(generate)
                     print("Next discovery time {}".format(dis_time))
                     prv_dis = dis_time
 
@@ -301,8 +306,9 @@ if __name__ == '__main__':
                         dis_time = BACKOFF_CUTOFF
                         print("Next discovery time {}".format(dis_time))
                     else:
-                        print(prv_dis * 2 * random.uniform(0, 1))
-                        dis_time = math.floor(prv_dis * 2 * random.uniform(0, 1))
+                        generate = prv_dis * 2 * rand
+                        print(generate)
+                        dis_time = math.floor(generate)
                         print("Next discovery time {}".format(dis_time))
                         prv_dis = dis_time
                 else:
@@ -314,8 +320,9 @@ if __name__ == '__main__':
                         dis_time = BACKOFF_CUTOFF
                         print("Next discovery time {}".format(dis_time))
                     else:
-                        print(prv_dis * 2 * random.uniform(0, 1))
-                        dis_time = math.floor(prv_dis * 2 * random.uniform(0, 1))
+                        generate = prv_dis * 2 * rand
+                        print(generate)
+                        dis_time = math.floor(generate)
                         print("Next discovery time {}".format(dis_time))
                         prv_dis = dis_time
 
