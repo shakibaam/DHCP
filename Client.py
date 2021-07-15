@@ -3,6 +3,7 @@ import socket
 import random
 import socket
 import struct
+import sys
 from random import randint
 from time import *
 import threading
@@ -119,6 +120,7 @@ def start_process(mac):
     sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
     get_ip = False
     getAck = False
+    finish=False
     # timer_thread=threading.Thread(target=discovery_timer,args=(ds_time,))
     # timer_thread.start()
     # while dis_time>0:
@@ -126,11 +128,16 @@ def start_process(mac):
     # offer
 
     msg, b = sock.recvfrom(1024)
+    # print(msg.decode())
     try:
-        data = msg.decode()
-        if "reserved" or "renew" in data:
+        data = msg.decode('utf-8')
+        print(data)
+        if "renew"  in data:
             getAck = True
             get_ip = True
+        if "blocked" or "reserved" in data:
+            finish=True
+            quit()
         # print(data)
     except (UnicodeDecodeError, AttributeError):
         print(pkt_type(msg))
@@ -159,54 +166,54 @@ def start_process(mac):
             timer_thread = threading.Thread(target=lease_expire())
             timer_thread.start()
 
-    return getAck, get_ip
+    return getAck, get_ip , finish
 
 
-def start_process2(mac):
-    global dis_time
+# def start_process2(mac):
+#     global dis_time
+#
+#     sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
+#     get_ip = False
+#     getAck = False
+#     while not getAck:
+#         msg, b = sock.recvfrom(1024)
+#         try:
+#             data = msg.decode()
+#             if "reserved" in data or "renew" in data:
+#                 getAck = True
+#                 get_ip = True
+#             # print(data)
+#         except (UnicodeDecodeError, AttributeError):
+#             print(pkt_type(msg))
+#             offerip, serverip, mac = parse_packet_client(msg)
+#             # print("offer {} for {}:".format(offer_ip, mac))
+#             print(offerip)
+#
+#             sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
+#             print("send request")
+#             # getAck = False
+#             sock.settimeout(4)
+#             try:
+#                 msg, b = sock.recvfrom(1024)
+#
+#                 if msg:
+#                     print("Ack {}".format(msg))
+#                     getAck = True
+#
+#             except socket.timeout:
+#                 print("Time out ...")
+#                 getAck = False
+#                 continue
+#
+#             if getAck == False:
+#                 print("time out!!")
+#                 # continue
+#             else:
+#                 print("No time out :)")
+#                 get_ip = True
 
-    sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
-    get_ip = False
-    getAck = False
-    while not getAck:
-        msg, b = sock.recvfrom(1024)
-        try:
-            data = msg.decode()
-            if "reserved" in data or "renew" in data:
-                getAck = True
-                get_ip = True
-            # print(data)
-        except (UnicodeDecodeError, AttributeError):
-            print(pkt_type(msg))
-            offerip, serverip, mac = parse_packet_client(msg)
-            # print("offer {} for {}:".format(offer_ip, mac))
-            print(offerip)
 
-            sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
-            print("send request")
-            # getAck = False
-            sock.settimeout(4)
-            try:
-                msg, b = sock.recvfrom(1024)
-
-                if msg:
-                    print("Ack {}".format(msg))
-                    getAck = True
-
-            except socket.timeout:
-                print("Time out ...")
-                getAck = False
-                continue
-
-            if getAck == False:
-                print("time out!!")
-                # continue
-            else:
-                print("No time out :)")
-                get_ip = True
-
-
-        return getAck, get_ip
+        # return getAck, get_ip
 
 
 def discovery_timer(initial_interval):
@@ -268,7 +275,9 @@ if __name__ == '__main__':
 
         while dis_time > 0:
             while not getAck:
-                getAck, getIp = start_process(mac)
+                getAck, getIp , finish= start_process(mac)
+                if finish:
+                    sys.exit()
             # timer_thread = threading.Thread(target=lease_expire())
             # timer_thread.start()
 
