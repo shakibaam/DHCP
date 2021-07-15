@@ -6,6 +6,7 @@ import struct
 from random import randint
 from time import *
 import threading
+import math
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -268,7 +269,7 @@ if __name__ == '__main__':
                     dis_time = 120
                     print("Next discovery time {}".format(dis_time))
                 else:
-                    dis_time = int(prv_dis * 2 * random.uniform(0, 1))
+                    dis_time =math.floor(prv_dis * 2 * random.uniform(0, 1))
                     print("Next discovery time {}".format(dis_time))
                     prv_dis = dis_time
 
@@ -278,7 +279,7 @@ if __name__ == '__main__':
                     dis_time = 120
                     print("Next discovery time {}".format(dis_time))
                 else:
-                    dis_time = int(prv_dis * 2 * random.uniform(0, 1))
+                    dis_time = math.floor(prv_dis * 2 * random.uniform(0, 1))
                     print("Next discovery time {}".format(dis_time))
                     prv_dis = dis_time
                     print("Get ip Ok..wait 10s")
