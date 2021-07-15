@@ -3,13 +3,10 @@ import socket
 import random
 import socket
 import struct
-import plistlib
-from uuid import getnode as get_mac
 from random import randint
 from time import *
 import threading
-
-import dhcppython
+import math
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -17,9 +14,12 @@ sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.bind(('0.0.0.0', 67))
 Mac = ""
 XID = ""
-TIMEOUT = 10
+# TIMEOUT = 10
 BACKOFF_CUTOFF = 120
 INITIAL_INTERVAL = 10
+dis_time = 10
+expire=False
+
 serverPort = 67
 clientPort = 68
 
@@ -37,7 +37,7 @@ def buildPacket_discovery(mac):
         t = randint(0, 255)
         transactionID += struct.pack('!B', t)
     XID = transactionID
-    print(XID)
+    # print(XID)
 
     packet = b''
     packet += b'\x01'  # Message type: Boot Request (1)
@@ -94,7 +94,6 @@ def buildPacket_request(serverip, offerip):
     return packet
 
 
-
 def pkt_type(packet):
     if packet[len(packet) - 1] == 2:
         return "DHCPOFFER"
@@ -102,37 +101,112 @@ def pkt_type(packet):
         return "DHCPACK"
 
 
-
 def parse_packet_client(pkt):
-   yiaddr_bytes=pkt[16:20]
-   yiaddr_original=ipaddress.IPv4Address(yiaddr_bytes)
-   siaddr_bytes=pkt[20:24]
-   siaddr_original=ipaddress.IPv4Address(siaddr_bytes)
+    yiaddr_bytes = pkt[16:20]
+    yiaddr_original = ipaddress.IPv4Address(yiaddr_bytes)
+    siaddr_bytes = pkt[20:24]
+    siaddr_original = ipaddress.IPv4Address(siaddr_bytes)
+    mac_byte = pkt[28:34]
+    mac_original = mac_byte.hex(":")
 
-   return yiaddr_original, siaddr_original
+    return yiaddr_original, siaddr_original, mac_original
 
 
 def start_process(mac):
-    offerip = ""
+    print("Start Process")
+    global dis_time
+
     sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
+    get_ip = False
+    getAck = False
+    # timer_thread=threading.Thread(target=discovery_timer,args=(ds_time,))
+    # timer_thread.start()
+    # while dis_time>0:
 
     # offer
 
     msg, b = sock.recvfrom(1024)
     try:
         data = msg.decode()
-
+        if "reserved" or "renew" in data:
+            getAck = True
+            get_ip = True
+        # print(data)
     except (UnicodeDecodeError, AttributeError):
-        print("offer {}".format(msg))
-
-        offerip, serverip = parse_packet_client(msg)
+        print(pkt_type(msg))
+        offerip, serverip, mac = parse_packet_client(msg)
+        # print("offer {} for {}:".format(offer_ip, mac))
         print(offerip)
 
         sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
         print("send request")
+        getAck = False
+        sock.settimeout(2)
+        try:
+            msg, b = sock.recvfrom(1024)
+            if msg:
+                print("Ack {}".format(msg))
+                getAck = True
+        except socket.timeout:
+            print("Time out ...")
 
+        if getAck == False:
+            print("time out!!")
+            # continue
+        else:
+            print("No time out :)")
+            get_ip = True
+            timer_thread = threading.Thread(target=lease_expire())
+            timer_thread.start()
+
+    return getAck, get_ip
+
+
+def start_process2(mac):
+    global dis_time
+
+    sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
+    get_ip = False
+    getAck = False
+    while not getAck:
         msg, b = sock.recvfrom(1024)
-        print("Ack {}".format(msg))
+        try:
+            data = msg.decode()
+            if "reserved" in data or "renew" in data:
+                getAck = True
+                get_ip = True
+            # print(data)
+        except (UnicodeDecodeError, AttributeError):
+            print(pkt_type(msg))
+            offerip, serverip, mac = parse_packet_client(msg)
+            # print("offer {} for {}:".format(offer_ip, mac))
+            print(offerip)
+
+            sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
+            print("send request")
+            # getAck = False
+            sock.settimeout(4)
+            try:
+                msg, b = sock.recvfrom(1024)
+
+                if msg:
+                    print("Ack {}".format(msg))
+                    getAck = True
+
+            except socket.timeout:
+                print("Time out ...")
+                getAck = False
+                continue
+
+            if getAck == False:
+                print("time out!!")
+                # continue
+            else:
+                print("No time out :)")
+                get_ip = True
+
+
+        return getAck, get_ip
 
 
 def discovery_timer(initial_interval):
@@ -146,120 +220,122 @@ def discovery_timer(initial_interval):
         sleep(1)
         dis_time -= 1
 
-def time_out():
-    global timeOut
-    timeOut=2
 
-    while timeOut:
-        mins, secs = divmod(timeOut, 60)
+def lease_expire():
+    print("expire timer begin")
+    global expire
+    lease = 11
+
+    while lease > 0:
+        mins, secs = divmod(lease, 60)
         timer = '{:02d}:{:02d}'.format(mins, secs)
-        # print(timer)
+        print(timer)
         sleep(1)
-        timeOut -= 1
-
-
-
+        lease -= 1
+    expire=True
 
 
 if __name__ == '__main__':
+
+    def discovery_timer(initial_interval):
+        print("discovery timer begin")
+
+        global dis_time
+        dis_time = initial_interval
+
+        while dis_time:
+            mins, secs = divmod(dis_time, 60)
+            timer = '{:02d}:{:02d}'.format(mins, secs)
+            # print(timer)
+            sleep(1)
+            dis_time -= 1
+
+
     mac = input("Enter your mac address")
-    # time=INITIAL_INTERVAL
-    offer_ip=""
-    flag=True
-    ds_time=INITIAL_INTERVAL
 
-    # while flag:
-    sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
-    get_ip=False
-    timer_thread=threading.Thread(target=discovery_timer,args=(ds_time,))
-    timer_thread.start()
-    # while dis_time>0:
+    offer_ip = ""
+    flag = True
+    getAck = False
+    getIp = False
 
 
 
-        # offer
 
-    msg, b = sock.recvfrom(1024)
-    try:
-        data = msg.decode()
-        print(data)
-    except (UnicodeDecodeError, AttributeError):
+    prv_dis = INITIAL_INTERVAL
+    while True:
+        timer_thread = threading.Thread(target=discovery_timer, args=(dis_time,))
+        timer_thread.start()
 
-        offerip, serverip = parse_packet_client(msg)
-        print("offer {}:".format(msg))
-        print(offerip)
+        while dis_time > 0:
+            while not getAck:
+                getAck, getIp = start_process(mac)
+            # timer_thread = threading.Thread(target=lease_expire())
+            # timer_thread.start()
 
-        sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
-        print("send request")
+        if dis_time <= 0:
+            print("Discovery timer finish..Go to begin timer again")
+            if getAck==False:
+                print("Get ip Not OK..Try again")
+                if prv_dis >= BACKOFF_CUTOFF:
+                    dis_time = BACKOFF_CUTOFF
+                    print("Next discovery time {}".format(dis_time))
+                else:
+                    dis_time = math.floor(prv_dis * 2 * random.uniform(0, 1))
+                    print("Next discovery time {}".format(dis_time))
+                    prv_dis = dis_time
+
+            elif getIp==True:
+                if expire==True:
+                    print("IP expired")
+                    expire=False
+                    if prv_dis >= BACKOFF_CUTOFF:
+                        dis_time = BACKOFF_CUTOFF
+                        print("Next discovery time {}".format(dis_time))
+                    else:
+                        print(prv_dis * 2 * random.uniform(0, 1))
+                        dis_time = math.floor(prv_dis * 2 * random.uniform(0, 1))
+                        print("Next discovery time {}".format(dis_time))
+                        prv_dis = dis_time
+                else:
+                    while expire==False:
+                        pass
+                        # print("wait for IP to expire")
+                    expire=False
+                    if prv_dis >= BACKOFF_CUTOFF:
+                        dis_time = BACKOFF_CUTOFF
+                        print("Next discovery time {}".format(dis_time))
+                    else:
+                        print(prv_dis * 2 * random.uniform(0, 1))
+                        dis_time = math.floor(prv_dis * 2 * random.uniform(0, 1))
+                        print("Next discovery time {}".format(dis_time))
+                        prv_dis = dis_time
+
+        getIp=False
         getAck=False
-        time_out_thread=threading.Thread(target=time_out)
-        time_out_thread.start()
 
-        # while timeOut>0:
-
-
-        msg, b = sock.recvfrom(1024)
-        if msg:
-            print("Ack {}".format(msg))
-            getAck=True
-        # if getAck:
-        #     flag=False
-    # if getAck==False:
-    #     print("time out!!")
-    #     # continue
-    # else:
-    #     print("No time out :)")
-    #     get_ip=True
-
-
-
-
-    # sock.sendto(buildPacket_discovery(mac), ('<broadcast>', 68))
-    # get_ip = False
-    # timer_thread = threading.Thread(target=discovery_timer, args=(ds_time,))
-    # timer_thread.start()
-    # # while dis_time>0:
-    #
-    # # offer
-    #
-    # msg, b = sock.recvfrom(1024)
-    # try:
-    #     data = msg.decode()
-    # except (UnicodeDecodeError, AttributeError):
-    #
-    #     offerip, serverip = parse_packet_client(msg)
-    #     print("offer {}:".format(msg))
-    #     print(offerip)
-    #
-    #     sock.sendto(buildPacket_request(serverip, offerip), (str(serverip), 68))
-    #     print("send request")
-    #     getAck = False
-    #     time_out_thread = threading.Thread(target=time_out)
-    #     time_out_thread.start()
-    #
-    #     while timeOut > 0:
-    #
-    #         msg, b = sock.recvfrom(1024)
-    #         if msg:
-    #             print("Ack {}".format(msg))
-    #             getAck = True
-    #         # if getAck:
-    #         #     flag=False
-    #     if getAck == False:
-    #         print("time out!!")
-    #         # continue
-    #     else:
-    #         print("No time out :)")
-    #         get_ip = True
-
-
-
-# if get_ip:
-#     flag=False
-# else:
-#     ds_time=ds_time*2*random.uniform(0, 1)
-
-
-
-
+            # if getAck == False or getIp == False:
+            #     print("Get ip Not OK..Try again")
+            #     if prv_dis >= BACKOFF_CUTOFF:
+            #         dis_time = BACKOFF_CUTOFF
+            #         print("Next discovery time {}".format(dis_time))
+            #     else:
+            #         dis_time =math.floor(prv_dis * 2 * random.uniform(0, 1))
+            #         print("Next discovery time {}".format(dis_time))
+            #         prv_dis = dis_time
+            #
+            #
+            # else:
+            #     if prv_dis >= BACKOFF_CUTOFF:
+            #         dis_time = BACKOFF_CUTOFF
+            #         print("Next discovery time {}".format(dis_time))
+            #     else:
+            #         dis_time = math.floor(prv_dis * 2 * random.uniform(0, 1))
+            #         print("Next discovery time {}".format(dis_time))
+            #         prv_dis = dis_time
+            #         print("Get ip Ok..wait 10s")
+            #
+            #     sleep(10)
+            #     print("Finish 10s")
+            #     getAck = False
+            #     getIp = False
 
