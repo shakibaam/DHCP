@@ -274,7 +274,7 @@ class Server():
         print("lease start for {}".format(mac))
 
         while timeOut:
-            if mac not in self.client_ips:
+            if str(mac) not in self.client_ips or ip not in self.OccupyIP or str(mac) not in self.connected_clients_list or ip not in self.waitIP:
                 self.client_ips[mac] = ip
                 self.OccupyIP.append(ip)
                 self.connected_clients_list[mac] = xid

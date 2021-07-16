@@ -135,7 +135,9 @@ def start_process(mac):
         if "renew"  in data:
             getAck = True
             get_ip = True
-        if "blocked" or "reserved" in data:
+            timer_thread = threading.Thread(target=lease_expire())
+            timer_thread.start()
+        elif "blocked" or "reserved" in data:
             finish=True
             quit()
         # print(data)
@@ -277,13 +279,14 @@ if __name__ == '__main__':
         while dis_time > 0:
             while not getAck:
                 getAck, getIp , finish= start_process(mac)
+
                 if finish:
                     sys.exit()
             # timer_thread = threading.Thread(target=lease_expire())
             # timer_thread.start()
 
         if dis_time <= 0:
-            rand=random.uniform(0, 1)
+            rand=random.uniform(0, 200)/200
             print(rand)
             print("Discovery timer finish..Go to begin timer again")
             if getAck==False:
