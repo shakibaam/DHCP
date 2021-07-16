@@ -1,13 +1,11 @@
-import ipaddress
 import json
 import struct
 import threading
 import socket
-import logging
 import time
 import random
 from OuiLookup import OuiLookup
-from concurrent.futures import ThreadPoolExecutor  # Python 3.2
+from concurrent.futures import ThreadPoolExecutor
 
 
 class Server():
@@ -17,7 +15,7 @@ class Server():
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.sock.bind(('', 68))
+        self.sock.bind(('', 67))
         self.connected_clients_list = dict()
 
         self.OccupyIP = []
@@ -57,16 +55,16 @@ class Server():
             block = self.block_or_not(macUpper)
             reserve = self.reserved_or_not(macUpper)
 
-            # print(reserve)
+
             if block:
                 print("This client is blocked")
                 string = "You are blocked "
-                self.sock.sendto(string.encode(), ('255.255.255.255', 67))
+                self.sock.sendto(string.encode(), ('255.255.255.255', 68))
             if reserve:
                 reserved_ip = self.reserved[macUpper]
                 print("This client is reserved with ip {}".format(reserved_ip))
                 string = "You are reserved with ip {}".format(reserved_ip)
-                self.sock.sendto(string.encode(), ('255.255.255.255', 67))
+                self.sock.sendto(string.encode(), ('255.255.255.255', 68))
                 PCName = OuiLookup().query(mac)
                 client_info = [PCName, mac, reserved_ip, "infinity"]
                 self.Serviced_ClientsInfo_print.append(client_info)
@@ -74,12 +72,12 @@ class Server():
             if not block and not reserve:
                 if mac not in self.connected_clients_list:
                     self.connected_clients_list[mac] = xid
-                # print(self.connected_clients_list)
+
                 occupy_ip_len = len(self.OccupyIP)
                 all_ip_number = self.stopInterval - self.startInterval + 1
                 if occupy_ip_len == all_ip_number:
                     string = "sorry all ips are occupied"
-                    self.sock.sendto(string.encode(), ('255.255.255.255', 67))
+                    self.sock.sendto(string.encode(), ('255.255.255.255', 68))
                 else:
                     flag = True
 
@@ -89,7 +87,7 @@ class Server():
                         offer = random.randint(self.startInterval, self.stopInterval)
                         offer_ip = self.long2ip(offer)
 
-                        if offer_ip in self.OccupyIP and offer_ip in self.waitIP:
+                        if offer_ip in self.OccupyIP :
                             continue
                         else:
                             print("Server want offer {}".format(offer_ip))
@@ -98,7 +96,7 @@ class Server():
                             flag = False
 
                     pkt = self.buildPacket_offer(offer_ip, xid, mac)
-                    self.sock.sendto(pkt, ('255.255.255.255', 67))
+                    self.sock.sendto(pkt, ('255.255.255.255', 68))
                     msg, client = server.recvfrom(1024)
 
                     print(self.packet_type(msg))
@@ -107,7 +105,7 @@ class Server():
                     pkt = self.buildPacket_Ack(offer_ip, xid, mac)
                     # start lease time timer
 
-                    self.sock.sendto(pkt, ('255.255.255.255', 67))
+                    self.sock.sendto(pkt, ('255.255.255.255', 68))
                     lease_time = self.lease_time
                     PCName = OuiLookup().query(mac)
                     client_info = [PCName, mac, offer_ip, lease_time]
@@ -126,7 +124,7 @@ class Server():
             prev_thread = self.leaseThreads[mac]
             print("You are in list yet with {} ,lease time renew".format(prev_ip))
             string = "You are in list yet with {} ,lease time renew".format(prev_ip)
-            self.sock.sendto(string.encode(), ('255.255.255.255', 67))
+            self.sock.sendto(string.encode(), ('255.255.255.255', 68))
             index = -1
             prev_thread.join()
             self.leaseThreads.pop(mac)
@@ -157,7 +155,7 @@ class Server():
                 print("Client xid {}".format(client_xid))
                 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                server.bind(("127.0.0.1", 68))
+                server.bind(("127.0.0.1", 67))
 
                 executor.submit(self.handle_client, client_xid, client_mac, client, server)
 
@@ -224,7 +222,7 @@ class Server():
         packet += b'\x00'  # Hops: 0
 
         xid_hex = hex(xid).split('x')[-1]
-        # print(xid_hex)
+
         packet += bytes.fromhex(xid_hex)  # Transaction ID
 
         packet += b'\x00\x00'  # Seconds elapsed: 0
@@ -274,7 +272,7 @@ class Server():
         print("lease start for {}".format(mac))
 
         while timeOut:
-            if str(mac) not in self.client_ips or ip not in self.OccupyIP or str(mac) not in self.connected_clients_list or ip not in self.waitIP:
+            if mac not in self.client_ips or ip not in self.OccupyIP or mac not in self.connected_clients_list :
                 self.client_ips[mac] = ip
                 self.OccupyIP.append(ip)
                 self.connected_clients_list[mac] = xid
@@ -287,9 +285,9 @@ class Server():
 
         print("lease expire for {}".format(mac))
         self.OccupyIP.remove(ip)
-        self.waitIP.remove(ip)
-        self.connected_clients_list.pop(str(mac))
-        self.client_ips.pop(str(mac))
+
+        self.connected_clients_list.pop(mac)
+        self.client_ips.pop(mac)
 
 
 if __name__ == '__main__':
